@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/websocket"
 )
@@ -48,7 +50,18 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		var jsonData []byte
 		err := conn.ReadJSON(&jsonData)
 		if err != nil {
-			log.Println(err)
+			if websocket.IsCloseError(err, 1006){
+				// client disconnected
+				out := OutgoingMessage{
+					Nickname: "system",
+					Text: fmt.Sprintf("[%s disconnected from chat]", new_conn.nickname),
+				}
+				for _, c := range conns {
+					sendMessage(c.conn, out)
+				}
+			} else {
+				log.Println(err)
+			}
 			return
 		}
 
@@ -60,10 +73,16 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 
 func main(){
+	host := flag.String("host", "127.0.0.1", "Host of server")
+	port := flag.Int("port", 4000, "Port of server")
+
+	flag.Parse()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handler)
 
-	log.Println("Starting server on 4000")
-	err := http.ListenAndServe(":4000", mux)
+	address := fmt.Sprintf("%s:%s", *host, strconv.Itoa(*port))
+	log.Printf("Starting server on %s\n", address)
+	err := http.ListenAndServe(address, mux)
 	log.Fatal(err)
 }

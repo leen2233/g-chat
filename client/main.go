@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/websocket"
@@ -18,8 +20,14 @@ var conn *websocket.Conn
 var err error
 
 func main() {
+	host := flag.String("host", "127.0.0.1", "Host of server")
+	port := flag.Int("port", 4000, "Port of server")
+
+	flag.Parse()
+	address := fmt.Sprintf("ws://%s:%s", *host, strconv.Itoa(*port))
+
 	dialer := websocket.Dialer{}
-	conn, _, err = dialer.Dial("ws://127.0.0.1:4000", nil)
+	conn, _, err = dialer.Dial(address, nil)
 	if err != nil {
 		log.Fatal("Couldn't connect to server")
 	}
