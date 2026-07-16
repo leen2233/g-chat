@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -35,17 +36,25 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 	conns = append(conns, new_conn)
 
-	for _, v := range conns {
-		v.conn.WriteMessage(websocket.TextMessage, fmt.Appendf([]byte(""), "[ %s joined the chat ]", new_conn.nickname))
+	msg := OutgoingMessage{
+		Nickname: "system",
+		Text: fmt.Sprintf("[%s joined the chat]", new_conn.nickname),
+	}
+	for _, c := range conns {
+		sendMessage(c.conn, msg)
 	}
 
 	for {
-		_, p, err := conn.ReadMessage()
+		var jsonData []byte
+		err := conn.ReadJSON(&jsonData)
 		if err != nil {
 			log.Println(err)
 			return
 		}
-		messageHandler(p, &new_conn)
+
+		msg := IncomingMessage{}
+		json.Unmarshal(jsonData, &msg)
+		messageHandler(msg, &new_conn)
 	}
 }
 

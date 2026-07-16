@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -11,7 +12,7 @@ import (
 
 var messagesView *gocui.View
 var g *gocui.Gui
-var unreadMessages []string
+var incoming = make(chan IncomingMessage, 100)
 
 var conn *websocket.Conn
 var err error
@@ -24,17 +25,18 @@ func main() {
 	}
 	go func() {
 		for {
-			_, p, err := conn.ReadMessage()
+			var jsonData []byte
+			err := conn.ReadJSON(&jsonData)
 			if err != nil {
 				log.Fatal(err)
 			}
-
-			if messagesView != nil {
-				fmt.Fprintf(messagesView, "%s\n", string(p))
-				g.Update(func(g *gocui.Gui) error {return nil})
-			} else {
-				unreadMessages = append(unreadMessages, string(p))
+			
+			msg := IncomingMessage{}
+			err = json.Unmarshal(jsonData, &msg)
+			if err != nil {
+				log.Println(err)
 			}
+			incoming <- msg
 		}
 	}()
 
@@ -67,10 +69,16 @@ func layout(g *gocui.Gui) error {
 		}
 	}
 	messagesView.Autoscroll = true
-	for _, v := range unreadMessages {
-		fmt.Fprintf(messagesView, "%s\n", v)
-	}
-	unreadMessages = nil
+
+	go func (){
+		for msg := range incoming {
+			g.Update(func(g *gocui.Gui) error {
+					fmt.Fprintf(messagesView, "\x1b[0;32m%s \x1b[0;0m %s\n", msg.Nickname, msg.Text)
+					return nil
+				},
+			)
+		}
+	}()
 
 	input, err := g.SetView("input", 1, maxY - 4, maxX - 2, maxY - 2)
 	if err != nil {
@@ -94,18 +102,28 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 var Editor gocui.Editor = gocui.EditorFunc(Edit)
 
 func Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
-	if key == gocui.KeyEnter {
-		message := strings.TrimSpace(v.Buffer())
+	switch {
+		case key == gocui.KeyEnter:
+			message := strings.TrimSpace(v.Buffer())
 
-		if conn != nil {
-			conn.WriteMessage(websocket.TextMessage, []byte(message))
-			v.Clear()
-			v.SetCursor(0, 0)
-		}
-	} else if key == gocui.KeyBackspace || key == gocui.KeyBackspace2 {
-		v.EditDelete(true)
-	} else {
-		v.EditWrite(ch)
+			if conn != nil && message != "" {
+				msg := OutgoingMessage{
+					Data: message,
+				}
+				jsonData, err := json.Marshal(msg)
+				if err != nil {
+					fmt.Println(err)
+				}
+				conn.WriteJSON(jsonData)
+				v.Clear()
+				v.SetCursor(0, 0)
+			} 
+		case key == gocui.KeyBackspace || key == gocui.KeyBackspace2:
+			v.EditDelete(true)
+		case key == gocui.KeySpace:
+			v.EditWrite(' ')
+		case ch != 0 && mod == 0:
+			v.EditWrite(ch)
 	}
 }
 

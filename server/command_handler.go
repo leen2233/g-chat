@@ -4,28 +4,31 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gorilla/websocket"
 )
 
-func messageHandler(data []byte, conn *Conn){
-	var message []byte
+func messageHandler(msg IncomingMessage, conn *Conn){
+	var message string
 	// check if message is command
-	if data[0] == byte('/') {
-		command, args, _ := strings.Cut(string(data), " ")
+	if msg.Data[0] == byte('/') {
+		command, args, _ := strings.Cut(msg.Data, " ")
 		if command == "/set_nickname" {
 			new_nickname := args
 			old_nickname := conn.nickname
 			conn.nickname = string(new_nickname)
 			
-			message = fmt.Appendf([]byte(""), "[ %s changed nickname to %s ]", old_nickname, conn.nickname)
+			message = fmt.Sprintf("[ %s changed nickname to %s ]", old_nickname, conn.nickname)
 		} else {
-			message = []byte("Unrecognized command")
+			message = "Unrecognized command"
 		}
 	} else {
-		message = fmt.Appendf([]byte(""), "[%s] %s", conn.nickname, data)
+		message = fmt.Sprintf("%s", msg.Data)
 	}
 	for _, c := range conns {
-		c.conn.WriteMessage(websocket.TextMessage, message)
+		msg := OutgoingMessage{
+			Nickname: conn.nickname,
+			Text: message,
+		}
+		sendMessage(c.conn, msg)
 	}
 }
 
