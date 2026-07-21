@@ -16,11 +16,6 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-type Conn struct {
-	conn      *websocket.Conn
-	nickname  string
-}
-
 var conns = []Conn{}
 
 func handler(w http.ResponseWriter, r *http.Request) {
@@ -38,37 +33,27 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 	conns = append(conns, new_conn)
 
-	msg := OutgoingMessage{
+	msg := Message{
 		Nickname: "system",
 		Text: fmt.Sprintf("[%s joined the chat]", new_conn.nickname),
 	}
+	msgJson, err := json.Marshal(msg)
+	if err != nil {
+		log.Println(err)
+	}
+	e := Event{
+		Type: "newMessage",
+		Payload: msgJson,
+	}
 	for _, c := range conns {
-		sendMessage(c.conn, msg)
+		c.SendEvent(e)
 	}
+	
+	
+	new_conn.AddHandler("newMessage", newMessageHandler)
 
-	for {
-		var jsonData []byte
-		err := conn.ReadJSON(&jsonData)
-		if err != nil {
-			if websocket.IsCloseError(err, 1006){
-				// client disconnected
-				out := OutgoingMessage{
-					Nickname: "system",
-					Text: fmt.Sprintf("[%s disconnected from chat]", new_conn.nickname),
-				}
-				for _, c := range conns {
-					sendMessage(c.conn, out)
-				}
-			} else {
-				log.Println(err)
-			}
-			return
-		}
 
-		msg := IncomingMessage{}
-		json.Unmarshal(jsonData, &msg)
-		messageHandler(msg, &new_conn)
-	}
+	new_conn.watchEvent()
 }
 
 

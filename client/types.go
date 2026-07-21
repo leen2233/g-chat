@@ -1,12 +1,20 @@
 package main
 
+import "encoding/json"
 
-type OutgoingMessage struct {
-	Data    string
+
+type Event struct {
+	Type     		string					`json:"type"`
+	Payload  		json.RawMessage `json:"payload"`
 }
 
-type IncomingMessage struct {
-	Nickname   string
-	Text       string
+
+type Message struct {
+	Nickname    string
+	Text        string
+}
+
+func newMessage() any {
+	return &Message{}
 }
 

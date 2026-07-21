@@ -5,18 +5,16 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"strconv"
 	"strings"
 
-	"github.com/gorilla/websocket"
 	"github.com/jroimartin/gocui"
 )
 
 var messagesView *gocui.View
 var g *gocui.Gui
-var incoming = make(chan IncomingMessage, 100)
+var incoming = make(chan *Message, 100)
 
-var conn *websocket.Conn
+var conn *Conn
 var err error
 
 func main() {
@@ -24,29 +22,24 @@ func main() {
 	port := flag.Int("port", 4000, "Port of server")
 
 	flag.Parse()
-	address := fmt.Sprintf("ws://%s:%s", *host, strconv.Itoa(*port))
 
-	dialer := websocket.Dialer{}
-	conn, _, err = dialer.Dial(address, nil)
-	if err != nil {
-		log.Fatal("Couldn't connect to server")
+	conn = &Conn{
+		Host: *host,
+		Port: *port,
 	}
-	go func() {
-		for {
-			var jsonData []byte
-			err := conn.ReadJSON(&jsonData)
-			if err != nil {
-				log.Fatal(err)
-			}
-			
-			msg := IncomingMessage{}
-			err = json.Unmarshal(jsonData, &msg)
-			if err != nil {
-				log.Println(err)
-			}
-			incoming <- msg
+	err = conn.Connect()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	conn.AddHandler("newMessage", func(payload any) {
+		msg, ok := payload.(*Message)
+		if !ok {
+			log.Println("payload is not *Message")
+			return
 		}
-	}()
+		incoming <- msg
+	})
 
 	// GUI
 	g, err = gocui.NewGui(gocui.OutputNormal)
@@ -70,7 +63,16 @@ func main() {
 
 func layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
-	messagesView, err = g.SetView("messages", 1, 1, maxX - 2, maxY - 5)
+	chatsView, err := g.SetView("chats", 1, 1, 28, maxY - 5)
+	if err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
+		}
+	}
+	chatsView.Frame = true
+	chatsView.Title = "Chats"
+
+	messagesView, err = g.SetView("messages", 30, 1, maxX - 2, maxY - 5)
 	if err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
@@ -106,23 +108,32 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 	return gocui.ErrQuit
 }
 
-
 var Editor gocui.Editor = gocui.EditorFunc(Edit)
 
 func Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
+	
 	switch {
 		case key == gocui.KeyEnter:
 			message := strings.TrimSpace(v.Buffer())
 
 			if conn != nil && message != "" {
-				msg := OutgoingMessage{
-					Data: message,
+				msg := Message{
+					Text: message,
+					Nickname: "",
 				}
-				jsonData, err := json.Marshal(msg)
+				jsonMsg, err := json.Marshal(msg)
 				if err != nil {
-					fmt.Println(err)
+					log.Print(err)
 				}
-				conn.WriteJSON(jsonData)
+				e := Event{
+					Type: "newMessage",
+					Payload: jsonMsg,
+				}
+				err = conn.SendEvent(e)
+				if err != nil {
+					log.Print(err)
+				}
+
 				v.Clear()
 				v.SetCursor(0, 0)
 			} 
