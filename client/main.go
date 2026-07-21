@@ -5,23 +5,36 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"strings"
 
-	"github.com/jroimartin/gocui"
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 )
 
-var messagesView *gocui.View
-var g *gocui.Gui
-var incoming = make(chan *Message, 100)
 
 var conn *Conn
 var err error
+var input *tview.TextArea
+var messagesBox *tview.TextView
 
 func main() {
 	host := flag.String("host", "127.0.0.1", "Host of server")
 	port := flag.Int("port", 4000, "Port of server")
 
 	flag.Parse()
+
+	chatsBox := tview.NewBox().SetBorder(true).SetTitle("Chats")
+	messagesBox = tview.NewTextView().SetDynamicColors(true)
+	messagesBox.SetBorder(true)
+	input = tview.NewTextArea().SetPlaceholder("type a message...").SetPlaceholderStyle(inputPlaceholderStyle)
+	input.SetBorder(true)
+	input.SetChangedFunc(inputChanged)
+	input.SetInputCapture(inputKeyHandler)
+
+	mainGrid := tview.NewGrid().SetColumns(30, 0).SetRows(0, 4)
+	mainGrid.AddItem(chatsBox, 0, 0, 2, 1, 0, 30, false)
+	mainGrid.AddItem(messagesBox, 0, 1, 1, 1, 0, 100, false)
+	mainGrid.AddItem(input, 1, 1, 1, 1, 0, 100, true)
+
 
 	conn = &Conn{
 		Host: *host,
@@ -38,112 +51,43 @@ func main() {
 			log.Println("payload is not *Message")
 			return
 		}
-		incoming <- msg
+		
+		fmt.Fprintf(messagesBox, "[green]%s[-] [gray]15:04[-]\n%s\n\n", msg.Nickname, msg.Text)
 	})
-
-	// GUI
-	g, err = gocui.NewGui(gocui.OutputNormal)
-	if err != nil {
-		log.Panicln(err)
-	}
-	defer g.Close()
-
-	g.SetManagerFunc(layout)
-
-	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
-		log.Panicln(err)
-	}
-
-	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
-		log.Panicln(err)
-	}
-
-}
-
-
-func layout(g *gocui.Gui) error {
-	maxX, maxY := g.Size()
-	chatsView, err := g.SetView("chats", 1, 1, 28, maxY - 5)
-	if err != nil {
-		if err != gocui.ErrUnknownView {
-			return err
-		}
-	}
-	chatsView.Frame = true
-	chatsView.Title = "Chats"
-
-	messagesView, err = g.SetView("messages", 30, 1, maxX - 2, maxY - 5)
-	if err != nil {
-		if err != gocui.ErrUnknownView {
-			return err
-		}
-	}
-	messagesView.Autoscroll = true
-
-	go func (){
-		for msg := range incoming {
-			g.Update(func(g *gocui.Gui) error {
-					fmt.Fprintf(messagesView, "\x1b[0;32m%s \x1b[0;0m %s\n", msg.Nickname, msg.Text)
-					return nil
-				},
-			)
-		}
-	}()
-
-	input, err := g.SetView("input", 1, maxY - 4, maxX - 2, maxY - 2)
-	if err != nil {
-		if err != gocui.ErrUnknownView {
-			return err
-		}
-	}
-	input.Editable = true
-	input.Editor = Editor
-	g.Cursor = true
-	g.SetCurrentView("input")	
-
-	return nil
-}
-
-func quit(g *gocui.Gui, v *gocui.View) error {
-	return gocui.ErrQuit
-}
-
-var Editor gocui.Editor = gocui.EditorFunc(Edit)
-
-func Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 	
-	switch {
-		case key == gocui.KeyEnter:
-			message := strings.TrimSpace(v.Buffer())
-
-			if conn != nil && message != "" {
-				msg := Message{
-					Text: message,
-					Nickname: "",
-				}
-				jsonMsg, err := json.Marshal(msg)
-				if err != nil {
-					log.Print(err)
-				}
-				e := Event{
-					Type: "newMessage",
-					Payload: jsonMsg,
-				}
-				err = conn.SendEvent(e)
-				if err != nil {
-					log.Print(err)
-				}
-
-				v.Clear()
-				v.SetCursor(0, 0)
-			} 
-		case key == gocui.KeyBackspace || key == gocui.KeyBackspace2:
-			v.EditDelete(true)
-		case key == gocui.KeySpace:
-			v.EditWrite(' ')
-		case ch != 0 && mod == 0:
-			v.EditWrite(ch)
+	if err := tview.NewApplication().SetRoot(mainGrid, true).Run(); err != nil {
+		panic(err)
 	}
 }
 
+
+func inputChanged() {
+}
+
+func inputKeyHandler(e *tcell.EventKey) *tcell.EventKey {
+	if e.Key() == tcell.KeyEnter {
+		if e.Modifiers() == 4 {
+			// shift + enter pressed
+			return e
+		} else {
+			// send a message
+			message := Message{
+				Text: input.GetText(),
+			}
+			jsonData, err := json.Marshal(message)
+			if err != nil {
+				log.Println("couldn't marshal json'")
+			}
+			e := Event{
+				Type: "newMessage",
+				Payload: jsonData,
+			}
+			conn.SendEvent(e)
+
+			input.SetText("", true)
+			return nil
+		}
+	}
+	return e
+}
 

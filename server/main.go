@@ -49,9 +49,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		c.SendEvent(e)
 	}
 	
-	
 	new_conn.AddHandler("newMessage", newMessageHandler)
-
 
 	new_conn.watchEvent()
 }
