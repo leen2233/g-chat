@@ -52,6 +52,7 @@ func (c *Conn) watchEvent() {
 				if indexOfConn >= 0 {
 					// if index found, remove disconnected connection from conns.
 					conns = append(conns[:indexOfConn], conns[indexOfConn+1:]...)
+					// TODO: remove conn from mappedConns 
 				}
 			} else {
 				log.Println(err)

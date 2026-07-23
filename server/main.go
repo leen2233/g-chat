@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -17,7 +16,9 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-var conns = []Conn{}
+var mappedConns map[int]*Conn
+
+var conns = []*Conn{}
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -31,26 +32,24 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		Nickname: getRandomNickname(),
 		Id:       getRandomId(),
 	}
-	conns = append(conns, new_conn)
+	conns = append(conns, &new_conn)
+	mappedConns[new_conn.Id] = &new_conn
 
 	log.Println("New Connection", new_conn.Nickname)
+
+	// set identity on Connection
+	identity := Identity{
+		Nickname: new_conn.Nickname,
+		Id: 			new_conn.Id,
+	}
+	sendEventHelper("setIdentity", identity, &new_conn)
 
 	msg := ConnectedDisconnected{
 		Nickname: new_conn.Nickname,
 		Id: 			new_conn.Id,
 		DateTime: time.Now(),
 	}
-	msgJson, err := json.Marshal(msg)
-	if err != nil {
-		log.Println(err)
-	}
-	e := Event{
-		Type: "connected",
-		Payload: msgJson,
-	}
-	for _, c := range conns {
-		c.SendEvent(e)
-	}
+	sendEventHelper("connected", msg, conns)	
 	
 	new_conn.AddHandler("newMessage", newMessageHandler)
 	new_conn.AddHandler("getOnlineUsers", getOnlineUsersHandler)
@@ -65,6 +64,8 @@ func main(){
 
 	flag.Parse()
 
+	mappedConns = make(map[int]*Conn)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handler)
 
@@ -73,3 +74,4 @@ func main(){
 	err := http.ListenAndServe(address, mux)
 	log.Fatal(err)
 }
+

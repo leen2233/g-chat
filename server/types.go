@@ -13,7 +13,8 @@ type Event struct {
 
 
 type Message struct {
-	Nickname    string		`json:"nickname"`
+	From		    int				`json:"from"`
+	To  				int 			`json:"to"`
 	Text        string    `json:"text"`
 	DateTime    time.Time `json:"datetime"`
 }
@@ -23,6 +24,12 @@ type ConnectedDisconnected struct {
 	Nickname    string    `json:"nickname"`
 	Id          int 			`json:"id"`
 	DateTime    time.Time `json:"datetime"`
+}
+
+
+type Identity struct {
+	Nickname 		string 		`json:"nickname"`
+	Id 					int 			`json:"id"`
 }
 
 

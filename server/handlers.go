@@ -14,19 +14,12 @@ func newMessageHandler(payload any, conn *Conn) {
 		return 
 	}
 
-	msg.Nickname = conn.Nickname
-	msg.DateTime = time.Now()
+	connTo, exists := mappedConns[msg.To]
+	if exists {
+		msg.From = conn.Id
+		msg.DateTime = time.Now()
 
-	jsonData, err := json.Marshal(msg)
-	if err != nil {
-		log.Println(err)
-	}
-	e := Event{
-		Type: "newMessage",
-		Payload: jsonData,
-	}
-	for _, c := range conns {
-		c.SendEvent(e)
+		sendEventHelper("newMessage", msg, connTo)
 	}
 }
 
