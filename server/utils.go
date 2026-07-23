@@ -13,3 +13,9 @@ func getRandomNickname() string {
 
 	return string(nickname)
 }
+
+
+func getRandomId() int {
+	return rand.IntN(1000000000)
+}
+

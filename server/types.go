@@ -1,6 +1,9 @@
 package main
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"time"
+)
 
 
 type Event struct {
@@ -10,9 +13,18 @@ type Event struct {
 
 
 type Message struct {
-	Nickname    string
-	Text        string
+	Nickname    string		`json:"nickname"`
+	Text        string    `json:"text"`
+	DateTime    time.Time `json:"datetime"`
 }
+
+
+type ConnectedDisconnected struct {
+	Nickname    string    `json:"nickname"`
+	Id          int 			`json:"id"`
+	DateTime    time.Time `json:"datetime"`
+}
+
 
 func newMessage() any {
 	return &Message{}

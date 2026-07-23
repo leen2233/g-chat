@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -14,9 +15,10 @@ var EventPayloadMap = map[string]func() any{
 }
 
 type Conn struct {
-	Handlers     map[string]func(payload any, conn *Conn)
-	conn       *websocket.Conn
-	nickname  string
+	handlers    map[string]func(payload any, conn *Conn)
+	conn        *websocket.Conn
+	Nickname  	string		`json:"nickname"`
+	Id         	int 			`json:"id"`
 }
 
 func (c *Conn) watchEvent() {
@@ -26,20 +28,30 @@ func (c *Conn) watchEvent() {
 		if err != nil {
 			if websocket.IsCloseError(err, 1006){
 				// client disconnected
-				msg := Message{
-					Nickname: "system",
-					Text: fmt.Sprintf("[%s disconnected from chat]", c.nickname),
+				msg := ConnectedDisconnected{
+					Nickname: c.Nickname,
+					Id:				c.Id,
+					DateTime: time.Now(),
 				}
 				msgJson, err := json.Marshal(msg)
 				if err != nil {
 					log.Println(err)
 				}
 				e := Event{
-					Type: "newMessage",
+					Type: "disconnected",
 					Payload: msgJson,
 				}
-				for _, c := range conns {
-					c.SendEvent(e)
+				indexOfConn := -1
+				for index, v := range conns {
+					v.SendEvent(e)
+					if c.Id == v.Id {
+						// try to find index of disconnected connection to later remove it
+						indexOfConn = index
+					}
+				}
+				if indexOfConn >= 0 {
+					// if index found, remove disconnected connection from conns.
+					conns = append(conns[:indexOfConn], conns[indexOfConn+1:]...)
 				}
 			} else {
 				log.Println(err)
@@ -52,7 +64,10 @@ func (c *Conn) watchEvent() {
 		if err != nil {
 			log.Println(err)
 		}
-		c.HandleEvent(e)
+		err = c.HandleEvent(e)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 
 }
@@ -66,11 +81,11 @@ func (c *Conn) HandleEvent(e Event) error {
 		if err != nil {
 			return err
 		}
-	} else {
-		return fmt.Errorf("Unknown constructor for event type: (%s). Set it to use it", e.Type)
 	}
 
-	handler := c.Handlers[e.Type]
+	log.Println(fmt.Sprintf("[New event] %s   [payload]: %+v", e.Type, payload))
+
+	handler := c.handlers[e.Type]
 	handler(payload, c)
 
 	return nil
@@ -88,9 +103,9 @@ func (c *Conn) SendEvent(e Event) error {
 
 
 func (c *Conn) AddHandler(eventType string, callback func(payload any, conn *Conn)) {
-	if c.Handlers == nil {
-		c.Handlers = make(map[string]func(payload any, conn *Conn))
+	if c.handlers == nil {
+		c.handlers = make(map[string]func(payload any, conn *Conn))
 	}
-	c.Handlers[eventType] = callback
+	c.handlers[eventType] = callback
 }
 

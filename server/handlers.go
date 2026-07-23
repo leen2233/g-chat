@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"time"
 )
 
 
@@ -13,7 +14,8 @@ func newMessageHandler(payload any, conn *Conn) {
 		return 
 	}
 
-	msg.Nickname = conn.nickname
+	msg.Nickname = conn.Nickname
+	msg.DateTime = time.Now()
 
 	jsonData, err := json.Marshal(msg)
 	if err != nil {
@@ -26,5 +28,20 @@ func newMessageHandler(payload any, conn *Conn) {
 	for _, c := range conns {
 		c.SendEvent(e)
 	}
+}
+
+
+func getOnlineUsersHandler(payload any, conn *Conn) {
+	jsonData, err := json.Marshal(conns)
+	if err != nil {
+		log.Println(err)
+	}
+
+	e := Event{
+		Type: "getOnlineUsers",
+		Payload: jsonData,
+	}
+
+	conn.SendEvent(e)
 }
 

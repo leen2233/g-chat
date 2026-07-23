@@ -11,7 +11,10 @@ import (
 
 
 var EventPayloadMap = map[string]func() any{
-	"newMessage": newMessage,
+	"newMessage": 		newMessage,
+	"connected": 			newConnectedDisconnected,
+	"disconnected":		newConnectedDisconnected,
+	"getOnlineUsers": newOnlineUsers,
 }
 
 type Conn struct {
@@ -30,6 +33,8 @@ func (c *Conn) Connect() error {
 	if err != nil {
 		return err
 	}
+
+	c.onConnect()
 
 	go func() {
 		for {
@@ -52,6 +57,19 @@ func (c *Conn) Connect() error {
 	}()
 
 	return nil
+}
+
+
+func (c *Conn) onConnect() {
+	// on first connect, ask for online users
+	e := Event{
+		Type: "getOnlineUsers",
+	}
+
+	err := c.SendEvent(e)
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 

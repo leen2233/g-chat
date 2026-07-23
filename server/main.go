@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -25,24 +26,26 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("New Connection")
-	
 	new_conn := Conn{
-		conn: conn,
-		nickname: getRandomNickname(),
+		conn:     conn,
+		Nickname: getRandomNickname(),
+		Id:       getRandomId(),
 	}
 	conns = append(conns, new_conn)
 
-	msg := Message{
-		Nickname: "system",
-		Text: fmt.Sprintf("[%s joined the chat]", new_conn.nickname),
+	log.Println("New Connection", new_conn.Nickname)
+
+	msg := ConnectedDisconnected{
+		Nickname: new_conn.Nickname,
+		Id: 			new_conn.Id,
+		DateTime: time.Now(),
 	}
 	msgJson, err := json.Marshal(msg)
 	if err != nil {
 		log.Println(err)
 	}
 	e := Event{
-		Type: "newMessage",
+		Type: "connected",
 		Payload: msgJson,
 	}
 	for _, c := range conns {
@@ -50,6 +53,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	new_conn.AddHandler("newMessage", newMessageHandler)
+	new_conn.AddHandler("getOnlineUsers", getOnlineUsersHandler)
 
 	new_conn.watchEvent()
 }
