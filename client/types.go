@@ -13,7 +13,8 @@ type Event struct {
 
 
 type Message struct {
-	Nickname    string		`json:"nickname"`
+	From		    int				`json:"from"`
+	To  				int 			`json:"to"`
 	Text        string    `json:"text"`
 	DateTime    time.Time `json:"datetime"`
 }
@@ -28,7 +29,14 @@ type ConnectedDisconnected struct {
 
 type OnlineUser struct {
 	Nickname    string    `json:"nickname"`
-	Id					int    `json:"id"`
+	Id					int    		`json:"id"`
+	Messages    []*Message   `json:"-"`
+}
+
+
+type Identity struct {
+	Nickname 		string 		`json:"nickname"`
+	Id 					int 			`json:"id"`
 }
 
 
@@ -42,4 +50,8 @@ func newConnectedDisconnected() any {
 
 func newOnlineUsers() any {
 	return &[]OnlineUser{}
+}
+
+func newIdentity() any {
+	return &Identity{}
 }

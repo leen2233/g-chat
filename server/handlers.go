@@ -19,7 +19,7 @@ func newMessageHandler(payload any, conn *Conn) {
 		msg.From = conn.Id
 		msg.DateTime = time.Now()
 
-		sendEventHelper("newMessage", msg, connTo)
+		sendEventHelper("newMessage", msg, []*Conn{conn, connTo})
 	}
 }
 

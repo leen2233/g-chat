@@ -26,7 +26,8 @@ func (c *Conn) watchEvent() {
 		var jsonData []byte
 		err := c.conn.ReadJSON(&jsonData)
 		if err != nil {
-			if websocket.IsCloseError(err, 1006){
+
+			// if websocket.IsCloseError(err, 1006){
 				// client disconnected
 				msg := ConnectedDisconnected{
 					Nickname: c.Nickname,
@@ -54,9 +55,10 @@ func (c *Conn) watchEvent() {
 					conns = append(conns[:indexOfConn], conns[indexOfConn+1:]...)
 					// TODO: remove conn from mappedConns 
 				}
-			} else {
-				log.Println(err)
-			}
+				log.Println(indexOfConn, conns)
+			// } else {
+			// 	log.Println(err)
+			// }
 			return
 		}
 		

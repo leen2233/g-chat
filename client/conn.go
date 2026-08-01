@@ -15,13 +15,16 @@ var EventPayloadMap = map[string]func() any{
 	"connected": 			newConnectedDisconnected,
 	"disconnected":		newConnectedDisconnected,
 	"getOnlineUsers": newOnlineUsers,
+	"setIdentity": 		newIdentity,
 }
 
 type Conn struct {
-	Host         string
-	Port         int
-	Handlers     map[string][]func(payload any)
-	WsConn       *websocket.Conn
+	Host         	string
+	Port         	int
+	Handlers 			map[string][]func(payload any)
+	WsConn    	  *websocket.Conn
+	Nickname	    string
+	Id						int
 }
 
 func (c *Conn) Connect() error {
