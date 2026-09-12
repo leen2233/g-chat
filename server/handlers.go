@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
 	"time"
 )
@@ -19,22 +18,14 @@ func newMessageHandler(payload any, conn *Conn) {
 		msg.From = conn.Id
 		msg.DateTime = time.Now()
 
+		log.Println(conn.Id, conn.Nickname, msg.To, connTo.Id, connTo.Nickname)
+
 		sendEventHelper("newMessage", msg, []*Conn{conn, connTo})
 	}
 }
 
 
 func getOnlineUsersHandler(payload any, conn *Conn) {
-	jsonData, err := json.Marshal(conns)
-	if err != nil {
-		log.Println(err)
-	}
-
-	e := Event{
-		Type: "getOnlineUsers",
-		Payload: jsonData,
-	}
-
-	conn.SendEvent(e)
+	sendEventHelper("getOnlineUsers", conns, conn)
 }
 

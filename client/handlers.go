@@ -121,5 +121,7 @@ func handleSetIdentity(payload any) {
 			chatsBox.RemoveItem(i)
 		}
 	}
+
+	fmt.Fprintf(identityBox, "%s (%v)", conn.Nickname, conn.Id)
 }
 

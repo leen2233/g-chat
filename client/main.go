@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+
+	// "fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -17,6 +19,7 @@ var conn 					*Conn
 var err 					error
 var input 				*tview.TextArea
 var messagesBox 	*tview.TextView
+var identityBox   *tview.TextView
 var chatsBox    	*tview.List
 var app 					*tview.Application
 
@@ -31,16 +34,19 @@ func main() {
 	flag.Parse()
 
 	chatsBox = tview.NewList()
-	chatsBox.ShowSecondaryText(false).SetBorder(true).SetTitle("Chats")
+	chatsBox.ShowSecondaryText(true).SetBorder(true).SetTitle("Chats")
 	chatsBox.SetChangedFunc(chatListChangedHandler)
 	messagesBox = tview.NewTextView().SetDynamicColors(true)
 	messagesBox.SetBorder(true).SetBorderPadding(0, 0, 1, 1)
+	identityBox = tview.NewTextView().SetScrollable(false)
+	identityBox.SetBorder(true).SetBorderPadding(0, 0, 1, 1)
 	input = tview.NewTextArea().SetPlaceholder("type a message...").SetPlaceholderStyle(inputPlaceholderStyle)
 	input.SetBorder(true)
 	input.SetInputCapture(inputKeyHandler)
 
 	mainGrid := tview.NewGrid().SetColumns(30, 0).SetRows(0, 4)
-	mainGrid.AddItem(chatsBox, 0, 0, 2, 1, 0, 30, false)
+	mainGrid.AddItem(chatsBox, 0, 0, 1, 1, 0, 30, false)
+	mainGrid.AddItem(identityBox, 1, 0, 1, 1, 0, 30, false)
 	mainGrid.AddItem(messagesBox, 0, 1, 1, 1, 0, 100, false)
 	mainGrid.AddItem(input, 1, 1, 1, 1, 0, 100, true)
 
@@ -80,6 +86,9 @@ func inputKeyHandler(e *tcell.EventKey) *tcell.EventKey {
 				// don't send a message if it's empty
 				return nil
 			}
+			if selectedChat == nil {
+				return nil
+			}
 			
 			message := Message{
 				Text: input.GetText(),
@@ -106,36 +115,26 @@ func inputKeyHandler(e *tcell.EventKey) *tcell.EventKey {
 func chatListChangedHandler(index int, main string, secondary string, shortcut rune) {
 	// handle when chatlist value changed. this function is fired when user selects or just moving between value without selecting or new item added and marked as selected.
 	if chatsBox.GetItemCount() > 0 {
-		// try to get current selected value if count is > 0
-		_, secondary := chatsBox.GetItemText(chatsBox.GetCurrentItem())
 		selectedChatId, err := strconv.Atoi(secondary)
 		if err != nil {
-			log.Println("couldn't convert selectedChatId to int")
+			log.Panic("couldn't convert selectedChatId to int")
 			return
 		}
-		if selectedChat == nil || selectedChatId != selectedChat.Id {
-			// new selected chat id is not same with previously selected chat
-			// load messages of newly selected chat
-			selectedChat = chatsList[selectedChatId]
-			messagesBox.Clear()
-			for _, message := range selectedChat.Messages {
-				var nickname string
-				if conn.Id == message.To {
-					nickname = chatsList[message.From].Nickname
-				} else {
-					nickname = conn.Nickname
-				}
 
-				fmt.Fprintf(messagesBox, "[green]%s[-] [gray]%s[-]\n%s\n\n", nickname, message.DateTime.Format("15:04:05"), message.Text)
+		selectedChat = chatsList[selectedChatId]
+		messagesBox.Clear()
+		for _, message := range selectedChat.Messages {
+			var nickname string
+			if conn.Id == message.To {
+				nickname = chatsList[message.From].Nickname
+			} else {
+				nickname = conn.Nickname
 			}
-			messagesBox.ScrollToEnd()
-			if app != nil {
-				app.Draw()
-			}
+
+			fmt.Fprintf(messagesBox, "[green]%s[-] [gray]%s[-]\n%s\n\n", nickname, message.DateTime.Format("15:04:05"), message.Text)
 		}
+		messagesBox.ScrollToEnd()
 	}
-
-
 }
 
 
