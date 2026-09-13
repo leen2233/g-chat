@@ -1,16 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 
 	// "fmt"
 	"log"
 	"strconv"
-	"strings"
 
-	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -34,10 +31,10 @@ func main() {
 	flag.Parse()
 
 	chatsBox = tview.NewList()
-	chatsBox.ShowSecondaryText(true).SetBorder(true).SetTitle("Chats")
+	chatsBox.ShowSecondaryText(true).SetBorder(true).SetTitle("Chats").SetBorderPadding(0, 0, 1, 2)
 	chatsBox.SetChangedFunc(chatListChangedHandler)
 	messagesBox = tview.NewTextView().SetDynamicColors(true)
-	messagesBox.SetBorder(true).SetBorderPadding(0, 0, 1, 1)
+	messagesBox.SetBorder(true)
 	identityBox = tview.NewTextView().SetScrollable(false)
 	identityBox.SetBorder(true).SetBorderPadding(0, 0, 1, 1)
 	input = tview.NewTextArea().SetPlaceholder("type a message...").SetPlaceholderStyle(inputPlaceholderStyle)
@@ -69,46 +66,10 @@ func main() {
 	
 	app = tview.NewApplication().SetRoot(mainGrid, true)
 	app.EnableMouse(true)
+	app.SetInputCapture(globalInputCapture)
 	if err := app.Run(); err != nil {
 		panic(err)
 	}
-}
-
-// enter handling
-func inputKeyHandler(e *tcell.EventKey) *tcell.EventKey {
-	if e.Key() == tcell.KeyEnter {
-		if e.Modifiers() == 4 {
-			// shift + enter pressed
-			return e
-		} else {
-			// send a message
-			if strings.TrimSpace(input.GetText()) == "" {
-				// don't send a message if it's empty
-				return nil
-			}
-			if selectedChat == nil {
-				return nil
-			}
-			
-			message := Message{
-				Text: input.GetText(),
-				To:		selectedChat.Id,
-			}
-			jsonData, err := json.Marshal(message)
-			if err != nil {
-				log.Println("couldn't marshal json'")
-			}
-			e := Event{
-				Type: "newMessage",
-				Payload: jsonData,
-			}
-			conn.SendEvent(e)
-
-			input.SetText("", true)
-			return nil
-		}
-	}
-	return e
 }
 
 

@@ -1,2 +1,3 @@
+- [ ] reconnection
 - [ ] use database
 - [ ] authentication

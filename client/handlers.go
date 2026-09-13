@@ -58,7 +58,7 @@ func handleConnected(payload any) {
 				Nickname: msg.Nickname,
 				Id: msg.Id,
 			}
-			chatsBox.AddItem(msg.Nickname, strconv.Itoa(msg.Id), 'a', nil)
+			chatsBox.AddItem(msg.Nickname, strconv.Itoa(msg.Id), '0', nil)
 		}
 	}	
 
@@ -100,7 +100,7 @@ func handleGetOnlineUsers(payload any) {
 		if user.Id != conn.Id {
 			if _, exists := chatsList[user.Id]; !exists {
 				chatsList[user.Id] = &user
-				chatsBox.AddItem(user.Nickname, strconv.Itoa(user.Id), 'a', func(){})
+				chatsBox.AddItem(user.Nickname, strconv.Itoa(user.Id), 0, func(){})
 			}
 		}
 	}
